@@ -140,7 +140,7 @@ const Makeappointment: React.FC = () => {
         Add Appointment
       </button>
 
-      <h2 className="text-xl font-bold mt-8 text-center">Appointments List</h2>
+      <h2 className="text-xl font-bold mt-8 text-center">Appointment List</h2>
       <Calendar
         localizer={localizer}
         events={appointments.map(appointment => ({
