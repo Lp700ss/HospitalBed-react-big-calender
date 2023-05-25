@@ -1,25 +1,38 @@
 import React from 'react';
-import logo from './logo.svg';
+// import logo from './logo.svg';
 import './App.css';
+import { BrowserRouter }
+    from 'react-router-dom';
+import Stickynavbar from './components/navbar/Sticknavbar';
+// import AppRouter from './AppRouter';
+import Availabledoc from './components/pages/Availabledoc';
+import Home from './components/pages/Home';
+import Makeappointment from './components/pages/Makeappointment';
+// import Home from './components/pages/Home';
+// import Makeappointment from './components/pages/Makeappointment';
+
+
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <>
+    <BrowserRouter>
+    <div className="relative z-0">
+      <div>
+      <Stickynavbar/>
+      <Home/>
+      </div>
+      <div className="bg-about bg-cover bg-center bg-no-repeat">
+          <Availabledoc />
+        </div>
+        <div className="relative z-0">
+          <Makeappointment />
+        </div>
     </div>
+    </BrowserRouter>
+  
+  {/* <AppRouter/> */}
+    </>
   );
 }
 
