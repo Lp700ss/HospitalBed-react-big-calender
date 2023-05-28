@@ -6,7 +6,8 @@ import moment from 'moment';
 type Appointment = {
   id: number;
   date: string;
-  time: string;
+  startTime: string;
+  endTime: string;
   description: string;
 };
 
@@ -17,11 +18,12 @@ const Makeappointment: React.FC = () => {
   const [newAppointment, setNewAppointment] = useState<Appointment>({
     id: 0,
     date: '',
-    time: '',
+    startTime: '',
+    endTime: '',
     description: '',
   });
-  const [suggestedSlot, setSuggestedSlot] = useState<Appointment | null>(null);
-  const [showPopup, setShowPopup] = useState(false);
+  const [suggestedSlots, setSuggestedSlots] = useState<Appointment[]>([]);
+  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
 
   useEffect(() => {
     const storedAppointments = localStorage.getItem('appointments');
@@ -38,9 +40,12 @@ const Makeappointment: React.FC = () => {
     setNewAppointment({ ...newAppointment, [e.target.name]: e.target.value });
   };
 
-  const isSlotAvailable = (slotDate: string, slotTime: string): boolean => {
+  const isSlotAvailable = (slotDate: string, slotStartTime: string, slotEndTime: string): boolean => {
     const conflictingAppointment = appointments.find(
-      appointment => appointment.date === slotDate && appointment.time === slotTime
+      appointment =>
+        appointment.date === slotDate &&
+        ((appointment.startTime <= slotStartTime && appointment.endTime > slotStartTime) ||
+          (appointment.startTime >= slotStartTime && appointment.startTime < slotEndTime))
     );
 
     return !conflictingAppointment;
@@ -48,52 +53,58 @@ const Makeappointment: React.FC = () => {
 
   const handleAddAppointment = () => {
     const slotDate = moment(newAppointment.date).format('YYYY-MM-DD');
-    const slotTime = moment(newAppointment.time, 'HH:mm').format('HH:mm');
+    const slotStartTime = moment(newAppointment.startTime, 'HH:mm').format('HH:mm');
+    const slotEndTime = moment(newAppointment.endTime, 'HH:mm').format('HH:mm');
+    const currentDateTime = moment();
 
-    if (isSlotAvailable(slotDate, slotTime)) {
+    if (isSlotAvailable(slotDate, slotStartTime, slotEndTime)) {
       setAppointments([...appointments, { ...newAppointment, id: Date.now() }]);
-      setNewAppointment({ id: 0, date: '', time: '', description: '' });
+      setNewAppointment({ id: 0, date: '', startTime: '', endTime: '', description: '' });
     } else {
-      let suggestedSlotDate = slotDate;
-      let suggestedSlotTime = slotTime;
+      const suggestedSlots: Appointment[] = [];
+      let suggestedSlotStartTime = currentDateTime.clone().startOf('hour');
+      let suggestedSlotEndTime = suggestedSlotStartTime.clone().add(30, 'minutes');
 
-      while (!isSlotAvailable(suggestedSlotDate, suggestedSlotTime)) {
-        const nextSlotTime = moment(suggestedSlotTime, 'HH:mm').add(30, 'minutes');
-        if (nextSlotTime.isAfter(moment('22:00', 'HH:mm'))) {
-          suggestedSlotDate = moment(suggestedSlotDate).add(1, 'day').format('YYYY-MM-DD');
-          suggestedSlotTime = '08:00';
-        } else {
-          suggestedSlotTime = nextSlotTime.format('HH:mm');
+      // Find up to 3 available slots for the same day within the next 4 hours
+      while (
+        suggestedSlots.length < 3 &&
+        suggestedSlotStartTime.isSameOrBefore(currentDateTime.clone().add(4, 'hours'), 'minute')
+      ) {
+        if (isSlotAvailable(slotDate, suggestedSlotStartTime.format('HH:mm'), suggestedSlotEndTime.format('HH:mm'))) {
+          suggestedSlots.push({
+            id: Date.now(),
+            date: slotDate,
+            startTime: suggestedSlotStartTime.format('HH:mm'),
+            endTime: suggestedSlotEndTime.format('HH:mm'),
+            description: newAppointment.description,
+          });
         }
+
+        suggestedSlotStartTime.add(30, 'minutes');
+        suggestedSlotEndTime.add(30, 'minutes');
       }
 
-      setSuggestedSlot({
-        id: Date.now(),
-        date: suggestedSlotDate,
-        time: suggestedSlotTime,
-        description: newAppointment.description,
-      });
-      setShowPopup(true);
+      setSuggestedSlots(suggestedSlots);
     }
   };
 
-  const handleAcceptSuggestedSlot = () => {
-    if (suggestedSlot) {
-      setAppointments([...appointments, suggestedSlot]);
-      setNewAppointment({ id: 0, date: '', time: '', description: '' });
-      setSuggestedSlot(null);
-      setShowPopup(false);
-    }
+  const handleAcceptSuggestedSlot = (slot: Appointment) => {
+    setAppointments([...appointments, slot]);
+    setNewAppointment({ id: 0, date: '', startTime: '', endTime: '', description: '' });
+    setSuggestedSlots([]);
   };
 
-  const handleRejectSuggestedSlot = () => {
-    setSuggestedSlot(null);
-    setShowPopup(false);
+  const handleRejectSuggestedSlots = () => {
+    setSuggestedSlots([]);
+  };
+
+  const handleToggleView = () => {
+    setViewMode(prevMode => (prevMode === 'calendar' ? 'list' : 'calendar'));
   };
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4 text-center">Manage Appointments</h1>
+      <h1 className="text-2xl font-bold mb-4">Appointment Manager</h1>
 
       <div className="flex flex-col mb-4">
         <label htmlFor="date" className="mb-2">
@@ -109,14 +120,27 @@ const Makeappointment: React.FC = () => {
         />
       </div>
       <div className="flex flex-col mb-4">
-        <label htmlFor="time" className="mb-2">
-          Time:
+        <label htmlFor="startTime" className="mb-2">
+          Start Time:
         </label>
         <input
           type="time"
-          id="time"
-          name="time"
-          value={newAppointment.time}
+          id="startTime"
+          name="startTime"
+          value={newAppointment.startTime}
+          onChange={handleInputChange}
+          className="border border-gray-300 rounded p-2"
+        />
+      </div>
+      <div className="flex flex-col mb-4">
+        <label htmlFor="endTime" className="mb-2">
+          End Time:
+        </label>
+        <input
+          type="time"
+          id="endTime"
+          name="endTime"
+          value={newAppointment.endTime}
           onChange={handleInputChange}
           className="border border-gray-300 rounded p-2"
         />
@@ -133,57 +157,65 @@ const Makeappointment: React.FC = () => {
           className="border border-gray-300 rounded p-2"
         ></textarea>
       </div>
-      <button
-        onClick={handleAddAppointment}
-        className="bg-blue-500 text-white py-2 px-4 rounded"
-      >
+      <button onClick={handleAddAppointment} className="bg-blue-500 text-white py-2 px-4 rounded">
         Add Appointment
       </button>
 
-      <h2 className="text-xl font-bold mt-8 text-center">Appointment List</h2>
-      <Calendar
-        localizer={localizer}
-        events={appointments.map(appointment => ({
-          start: new Date(appointment.date + ' ' + appointment.time),
-          end: new Date(appointment.date + ' ' + appointment.time),
-          title: appointment.description,
-        }))}
-        views={['month', 'week']}
-        step={30}
-        timeslots={2}
-        defaultView="week"
-        defaultDate={new Date()}
-        min={new Date(0, 0, 0, 8, 0, 0)}
-        max={new Date(0, 0, 0, 22, 0, 0)}
-        length={2}
-        showMultiDayTimes
-        selectable={false}
-      />
+      <h2 className="text-xl font-bold mt-8">Appointments</h2>
+      {viewMode === 'calendar' ? (
+        <Calendar
+          localizer={localizer}
+          events={appointments.map(appointment => ({
+            start: new Date(appointment.date + ' ' + appointment.startTime),
+            end: new Date(appointment.date + ' ' + appointment.endTime),
+            title: appointment.description,
+          }))}
+          views={['month', 'week']}
+          step={30}
+          timeslots={2}
+          defaultView="week"
+          defaultDate={new Date()}
+          min={new Date(0, 0, 0, 8, 0, 0)}
+          max={new Date(0, 0, 0, 22, 0, 0)}
+          length={2}
+          showMultiDayTimes
+          selectable={false}
+        />
+      ) : (
+        <ul>
+          {appointments.map(appointment => (
+            <li key={appointment.id}>
+              <strong>{appointment.date}:</strong> {appointment.startTime} - {appointment.endTime}: {appointment.description}
+            </li>
+          ))}
+        </ul>
+      )}
 
-      {suggestedSlot && showPopup && (
-        <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75">
-          <div className="bg-white p-8 rounded shadow">
-            <p className="mb-2">
-              The selected slot is already occupied. The closest available slot is{' '}
-              {suggestedSlot.date} {suggestedSlot.time}.
-            </p>
-            <div className="flex justify-end">
-              <button
-                onClick={handleAcceptSuggestedSlot}
-                className="bg-green-500 text-white py-2 px-4 rounded mr-2"
-              >
-                Accept
-              </button>
-              <button
-                onClick={handleRejectSuggestedSlot}
-                className="bg-red-500 text-white py-2 px-4 rounded"
-              >
-                Reject
-              </button>
-            </div>
-          </div>
+      {suggestedSlots.length > 0 && (
+        <div className="mt-4">
+          <h3 className="text-lg font-bold mb-2">Suggested Slots</h3>
+          <ul>
+            {suggestedSlots.map(slot => (
+              <li key={slot.id}>
+                {slot.date}: {slot.startTime} - {slot.endTime}{' '}
+                <button
+                  onClick={() => handleAcceptSuggestedSlot(slot)}
+                  className="bg-green-500 text-white py-2 px-4 rounded mx-2"
+                >
+                  Accept
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button onClick={handleRejectSuggestedSlots} className="bg-red-500 text-white py-2 px-4 rounded mt-2">
+            Reject All
+          </button>
         </div>
       )}
+
+      <button onClick={handleToggleView} className="bg-gray-500 text-white py-2 px-4 rounded mt-4">
+        Toggle View
+      </button>
     </div>
   );
 };
