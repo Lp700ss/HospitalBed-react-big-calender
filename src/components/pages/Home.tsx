@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { SectionWrapper } from '../hoc';
-import { slideIn } from '../utils/motion';
 import { styles } from '../../styles';
 
 import {worldmap } from '../../assets';
