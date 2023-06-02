@@ -25,7 +25,7 @@ function App() {
       <div className="bg-about bg-cover bg-center bg-no-repeat">
           <Availabledoc />
         </div>
-        <div className="relative z-0">
+        <div className="bg-about bg-cover bg-center bg-no-repeat">
           <Makeappointment />
         </div>
     </div>

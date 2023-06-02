@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-
+import { SectionWrapper } from '../hoc';
+import { slideIn } from '../utils/motion';
 import { styles } from '../../styles';
 
 import {worldmap } from '../../assets';
@@ -68,7 +69,7 @@ const Home: React.FC = () => {
           className="absolute xs:bottom-10 bottom-32 w-full 
           flex justify-center items-center"
         >
-          <a href="#about">
+          <a href="#availabledoc">
             <div
               className="w-[35px] h-[64px] rounded-3xl border-4 
             border-french border-dim flex
@@ -104,4 +105,4 @@ const Home: React.FC = () => {
   );
 };
 
-export default Home;
+export default SectionWrapper(Home, 'home');
